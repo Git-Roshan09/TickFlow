@@ -1,0 +1,57 @@
+[
+    {
+        "customer_id": "CUST-001",
+        "name": "Alice Johnson",
+        "email": "alice.johnson@email.com",
+        "tier": "standard",
+        "account_age_days": 180,
+        "total_orders": 5,
+        "total_spent": 450.00,
+        "has_active_subscription": false,
+        "fraud_flag": false
+    },
+    {
+        "customer_id": "CUST-002",
+        "name": "Bob Smith",
+        "email": "bob.smith@email.com",
+        "tier": "premium",
+        "account_age_days": 365,
+        "total_orders": 15,
+        "total_spent": 1250.00,
+        "has_active_subscription": true,
+        "fraud_flag": false
+    },
+    {
+        "customer_id": "CUST-003",
+        "name": "Carol Williams",
+        "email": "carol.williams@email.com",
+        "tier": "vip",
+        "account_age_days": 730,
+        "total_orders": 50,
+        "total_spent": 8500.00,
+        "has_active_subscription": true,
+        "fraud_flag": false
+    },
+    {
+        "customer_id": "CUST-004",
+        "name": "David Brown",
+        "email": "david.brown@email.com",
+        "tier": "standard",
+        "account_age_days": 90,
+        "total_orders": 3,
+        "total_spent": 350.00,
+        "has_active_subscription": false,
+        "fraud_flag": false
+    },
+    {
+        "customer_id": "CUST-005",
+        "name": "Eve Martinez",
+        "email": "eve.martinez@email.com",
+        "tier": "premium",
+        "account_age_days": 500,
+        "total_orders": 25,
+        "total_spent": 3200.00,
+        "has_active_subscription": true,
+        "fraud_flag": true
+    }
+]

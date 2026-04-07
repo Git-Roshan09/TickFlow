@@ -1,0 +1,129 @@
+# OpenEnv Environment Specification
+# OpsFlow: Policy-Aware Customer Support & Compliance Orchestrator
+
+name: opsflow-openenv
+version: 1.0.0
+description: >
+  Enterprise customer support and compliance operations environment where
+  AI agents learn to resolve customer tickets safely, efficiently, and
+  compliantly through realistic tool orchestration.
+
+# Environment metadata
+environment:
+  name: OpsFlowEnv
+  type: sequential-decision
+  domain: customer-support
+  
+# API specification
+api:
+  framework: fastapi
+  endpoints:
+    reset: /reset
+    step: /step
+    state: /state
+    health: /health
+    tasks: /tasks
+  port: 7860
+
+# Action space definition
+action_space:
+  type: discrete
+  tools:
+    - READ_TICKET
+    - GET_ORDER_DETAILS
+    - GET_CUSTOMER_PROFILE
+    - CHECK_POLICY
+    - REQUEST_APPROVAL
+    - EXECUTE_REFUND
+    - ISSUE_STORE_CREDIT
+    - SEND_CUSTOMER_REPLY
+    - SUBMIT_RESOLUTION
+  schema:
+    tool_name: string
+    arguments: object
+    reasoning: string (optional)
+
+# Observation space definition
+observation_space:
+  type: structured
+  fields:
+    task_id: string
+    ticket_text: string
+    available_tools: list[string]
+    last_tool_output: object
+    workflow_history: list[object]
+    compliance_alerts: list[string]
+    budget_remaining: float
+    max_steps_remaining: integer
+    current_status: string
+
+# Reward specification
+reward:
+  range: [-1.0, 1.0]
+  type: dense
+  components:
+    - tool_score
+    - order_score
+    - compliance_score
+    - efficiency_score
+    - outcome_score
+
+# Task definitions
+tasks:
+  - id: task_easy_delivery
+    name: Delivery Status Resolution
+    difficulty: easy
+    description: Customer asking about delivery status. Simple lookup and response.
+    expected_steps: 4
+    
+  - id: task_medium_refund
+    name: Low-Value Refund
+    difficulty: medium
+    description: Refund request for damaged item under threshold. Requires policy check.
+    expected_steps: 6
+    
+  - id: task_hard_approval
+    name: High-Value Refund with Approval
+    difficulty: hard
+    description: High-value refund requiring manager approval. Full compliance workflow.
+    expected_steps: 8
+
+# Grading specification
+grading:
+  type: deterministic
+  score_range: [0.0, 1.0]
+  criteria:
+    - final_state_correctness
+    - required_tools_used
+    - action_ordering
+    - policy_compliance
+    - customer_communication
+
+# Runtime constraints
+constraints:
+  max_steps: 15
+  max_episode_time: 300  # seconds
+  memory_limit: 512MB
+
+# Deployment
+deployment:
+  platform: huggingface-spaces
+  container: docker
+  sdk: docker
+  tags:
+    - openenv
+    - customer-support
+    - compliance
+    - enterprise
+
+# Entry points
+entrypoints:
+  server: python app.py
+  inference: python inference.py
+
+# Author information
+author:
+  name: OpenEnv-OpsFlow Team
+  
+# License
+license: MIT

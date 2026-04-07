@@ -1,0 +1,32 @@
+[
+    {
+        "policy_id": "POL-001",
+        "policy_name": "Standard Refund Policy",
+        "description": "Standard refund policy for all orders. Refunds above threshold require manager approval.",
+        "refund_threshold": 100.0,
+        "approval_required_above": 100.0,
+        "max_refund_days": 30,
+        "vip_credit_bonus_percent": 10.0,
+        "fraud_block_enabled": true
+    },
+    {
+        "policy_id": "POL-002",
+        "policy_name": "Premium Customer Policy",
+        "description": "Enhanced policy for premium tier customers with faster processing.",
+        "refund_threshold": 200.0,
+        "approval_required_above": 200.0,
+        "max_refund_days": 45,
+        "vip_credit_bonus_percent": 15.0,
+        "fraud_block_enabled": true
+    },
+    {
+        "policy_id": "POL-003",
+        "policy_name": "VIP Customer Policy",
+        "description": "VIP customers get highest limits and store credit bonuses.",
+        "refund_threshold": 500.0,
+        "approval_required_above": 500.0,
+        "max_refund_days": 60,
+        "vip_credit_bonus_percent": 20.0,
+        "fraud_block_enabled": false
+    }
+]

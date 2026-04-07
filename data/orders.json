@@ -1,0 +1,67 @@
+[
+    {
+        "order_id": "ORD-001",
+        "customer_id": "CUST-001",
+        "product_name": "Wireless Bluetooth Headphones",
+        "product_category": "Electronics",
+        "order_amount": 49.99,
+        "order_date": "2024-03-15",
+        "delivery_status": "shipped",
+        "delivery_date": null,
+        "tracking_number": "TRK-12345-ABC",
+        "issue_type": "delivery_inquiry",
+        "issue_description": "Customer asking about delivery status"
+    },
+    {
+        "order_id": "ORD-002",
+        "customer_id": "CUST-002",
+        "product_name": "Premium Coffee Maker",
+        "product_category": "Kitchen",
+        "order_amount": 89.99,
+        "order_date": "2024-03-10",
+        "delivery_status": "delivered",
+        "delivery_date": "2024-03-14",
+        "tracking_number": "TRK-22345-DEF",
+        "issue_type": "damaged_product",
+        "issue_description": "Product arrived damaged, customer requesting refund"
+    },
+    {
+        "order_id": "ORD-003",
+        "customer_id": "CUST-003",
+        "product_name": "4K Smart Television 55-inch",
+        "product_category": "Electronics",
+        "order_amount": 599.99,
+        "order_date": "2024-03-08",
+        "delivery_status": "delivered",
+        "delivery_date": "2024-03-12",
+        "tracking_number": "TRK-32345-GHI",
+        "issue_type": "defective_product",
+        "issue_description": "TV screen has dead pixels, customer requesting replacement or refund"
+    },
+    {
+        "order_id": "ORD-004",
+        "customer_id": "CUST-004",
+        "product_name": "Designer Handbag",
+        "product_category": "Fashion",
+        "order_amount": 299.99,
+        "order_date": "2024-03-05",
+        "delivery_status": "delivered",
+        "delivery_date": "2024-03-09",
+        "tracking_number": "TRK-42345-JKL",
+        "issue_type": "wrong_item",
+        "issue_description": "Received wrong color, wants exchange"
+    },
+    {
+        "order_id": "ORD-005",
+        "customer_id": "CUST-001",
+        "product_name": "Running Shoes",
+        "product_category": "Sports",
+        "order_amount": 129.99,
+        "order_date": "2024-03-01",
+        "delivery_status": "delivered",
+        "delivery_date": "2024-03-05",
+        "tracking_number": "TRK-52345-MNO",
+        "issue_type": "quality_issue",
+        "issue_description": "Sole came off after 2 days of use"
+    }
+]
