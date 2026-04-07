@@ -1,22 +1,39 @@
 #!/usr/bin/env python3
 """
 OpenEnv-OpsFlow: Baseline Inference Script
+===================================
+MANDATORY
+- Before submitting, ensure the following variables are defined in your environment configuration:
+    API_BASE_URL   The API endpoint for the LLM.
+    MODEL_NAME     The model identifier to use for inference.
+    HF_TOKEN       Your Hugging Face / API key.
 
-Uses OpenAI API client to run an LLM agent against all tasks.
-Produces reproducible baseline scores with structured logging.
+- Defaults are set only for API_BASE_URL and MODEL_NAME:
+    API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+    MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 
-Required environment variables:
-- OPENAI_API_KEY or API_KEY: API key for the LLM
-- API_BASE_URL: Base URL for the API endpoint
-- MODEL_NAME: Model identifier to use
-- HF_TOKEN: Hugging Face token (optional, for HF deployment)
+STDOUT FORMAT
+- The script must emit exactly three line types to stdout, in this order:
+
+    [START] task=<task_name> env=<benchmark> model=<model_name>
+    [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+    [END]   success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
+
+  Rules:
+    - One [START] line at episode begin.
+    - One [STEP] line per step, immediately after env.step() returns.
+    - One [END] line after env.close(), always emitted (even on exception).
+    - reward and rewards are formatted to 2 decimal places.
+    - done and success are lowercase booleans: true or false.
+    - error is the raw last_action_error string, or null if none.
+    - All fields on a single line with no newlines within a line.
+    - Each tasks should return score in [0, 1]
 """
 
 import os
 import sys
 import json
-import time
-from datetime import datetime
+import textwrap
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
@@ -35,13 +52,15 @@ load_dotenv()
 # Configuration
 # =============================================================================
 
-API_KEY = os.environ.get("OPENAI_API_KEY") or os.environ.get("API_KEY", "")
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
+API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
+MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 
-MAX_STEPS_PER_TASK = 15
-MAX_RETRIES = 3
+BENCHMARK = "opsflow"
+MAX_STEPS = 15
+TEMPERATURE = 0.0  # Deterministic for reproducibility
+MAX_TOKENS = 500
+SUCCESS_SCORE_THRESHOLD = 0.5
 
 
 # =============================================================================
@@ -207,43 +226,28 @@ class OpsFlowAgent:
 # Logging Functions (Required Format)
 # =============================================================================
 
-def log_start(task_id: str, task_info: Dict[str, Any]):
+def log_start(task: str, env: str, model: str) -> None:
     """Log task start in required format."""
-    log_data = {
-        "task_id": task_id,
-        "difficulty": task_info.get("difficulty", "unknown"),
-        "description": task_info.get("description", ""),
-        "timestamp": datetime.now().isoformat()
-    }
-    print(f"[START] {json.dumps(log_data)}")
+    print(f"[START] task={task} env={env} model={model}", flush=True)
 
 
-def log_step(step_num: int, action: Action, reward: float, done: bool, info: Dict[str, Any]):
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
     """Log step in required format."""
-    log_data = {
-        "step": step_num,
-        "action": {
-            "tool_name": action.tool_name,
-            "arguments": action.arguments
-        },
-        "reward": round(reward, 4),
-        "done": done,
-        "cumulative_reward": round(info.get("total_reward", 0.0), 4),
-        "timestamp": datetime.now().isoformat()
-    }
-    print(f"[STEP] {json.dumps(log_data)}")
+    error_val = error if error else "null"
+    done_val = str(done).lower()
+    print(
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
+        flush=True,
+    )
 
 
-def log_end(task_id: str, final_score: float, steps_taken: int, total_reward: float):
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     """Log task end in required format."""
-    log_data = {
-        "task_id": task_id,
-        "final_score": round(final_score, 4),
-        "steps_taken": steps_taken,
-        "total_reward": round(total_reward, 4),
-        "timestamp": datetime.now().isoformat()
-    }
-    print(f"[END] {json.dumps(log_data)}")
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}",
+        flush=True,
+    )
 
 
 # =============================================================================
@@ -262,51 +266,78 @@ def run_task(env: OpsFlowEnv, agent: OpsFlowAgent, task_id: str) -> Dict[str, An
     Returns:
         Results dictionary with score, steps, etc.
     """
-    # Get task info
-    task_info = env.get_task_info(task_id)
-    
     # Log start
-    log_start(task_id, task_info)
+    log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
     
-    # Reset environment and agent
-    observation = env.reset(task_id=task_id)
-    agent.reset()
+    rewards: List[float] = []
+    steps_taken = 0
+    score = 0.0
+    success = False
+    result = None
     
-    # Run episode
-    done = False
-    step_num = 0
-    total_reward = 0.0
-    
-    while not done and step_num < MAX_STEPS_PER_TASK:
-        # Get action from agent
-        obs_dict = observation.model_dump()
-        action = agent.get_action(obs_dict)
+    try:
+        # Reset environment and agent
+        observation = env.reset(task_id=task_id)
+        agent.reset()
         
-        # Execute action
-        result = env.step(action)
+        # Run episode
+        done = False
         
-        step_num += 1
-        total_reward += result.reward
+        for step in range(1, MAX_STEPS + 1):
+            if done:
+                break
+            
+            # Get action from agent
+            obs_dict = observation.model_dump()
+            action = agent.get_action(obs_dict)
+            
+            # Execute action
+            result = env.step(action)
+            
+            reward = result.reward or 0.0
+            done = result.done
+            error = result.info.get("error") if result.info else None
+            
+            rewards.append(reward)
+            steps_taken = step
+            
+            # Format action string for logging
+            action_str = f"{action.tool_name}({json.dumps(action.arguments)})"
+            
+            # Log step
+            log_step(step=step, action=action_str, reward=reward, done=done, error=error)
+            
+            # Update for next iteration
+            observation = result.observation
+            
+            if done:
+                break
         
-        # Log step
-        log_step(step_num, action, result.reward, result.done, result.info)
+        # Get final score from grader
+        if done and result and result.info:
+            score = result.info.get("final_score", 0.0)
+        else:
+            # If not done, use normalized cumulative reward
+            score = max(0.0, min(1.0, sum(rewards)))
         
-        # Update for next iteration
-        observation = result.observation
-        done = result.done
+        score = max(0.0, min(1.0, score))  # clamp to [0, 1]
+        success = score >= SUCCESS_SCORE_THRESHOLD
+        
+    except Exception as e:
+        print(f"[DEBUG] Task {task_id} failed with error: {e}", flush=True)
+        score = 0.0
+        success = False
     
-    # Get final score
-    final_score = result.info.get("final_score", 0.0) if done else 0.0
-    
-    # Log end
-    log_end(task_id, final_score, step_num, total_reward)
+    finally:
+        # Always log end
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
     
     return {
         "task_id": task_id,
-        "final_score": final_score,
-        "steps_taken": step_num,
-        "total_reward": total_reward,
-        "success": done and final_score > 0.5
+        "final_score": score,
+        "steps_taken": steps_taken,
+        "total_reward": sum(rewards),
+        "success": success
     }
 
 
@@ -314,20 +345,11 @@ def main():
     """Main inference entry point."""
     # Validate configuration
     if not API_KEY:
-        print("ERROR: OPENAI_API_KEY or API_KEY environment variable not set", file=sys.stderr)
+        print("[DEBUG] ERROR: HF_TOKEN or API_KEY environment variable not set", flush=True)
         sys.exit(1)
     
-    print(f"# OpenEnv-OpsFlow Inference")
-    print(f"# Model: {MODEL_NAME}")
-    print(f"# API Base: {API_BASE_URL}")
-    print(f"# Timestamp: {datetime.now().isoformat()}")
-    print()
-    
     # Initialize OpenAI client
-    client = OpenAI(
-        api_key=API_KEY,
-        base_url=API_BASE_URL
-    )
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     
     # Initialize environment and agent
     env = OpsFlowEnv()
@@ -339,25 +361,14 @@ def main():
     # Run all tasks
     results = []
     for task_id in task_ids:
-        print(f"\n# Running task: {task_id}")
         result = run_task(env, agent, task_id)
         results.append(result)
-        print()
     
-    # Print summary
-    print("\n# ============================================")
-    print("# SUMMARY")
-    print("# ============================================")
-    
-    total_score = 0.0
-    for result in results:
-        status = "PASS" if result["success"] else "FAIL"
-        print(f"# {result['task_id']}: score={result['final_score']:.4f}, steps={result['steps_taken']}, status={status}")
-        total_score += result["final_score"]
-    
+    # Print summary (debug output)
+    print(f"\n# SUMMARY", flush=True)
+    total_score = sum(r["final_score"] for r in results)
     avg_score = total_score / len(results) if results else 0.0
-    print(f"# Average Score: {avg_score:.4f}")
-    print("# ============================================")
+    print(f"# Average Score: {avg_score:.3f}", flush=True)
     
     # Return exit code based on success
     all_passed = all(r["success"] for r in results)
