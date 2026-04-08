@@ -138,10 +138,52 @@ R_step = R_tool + R_order + R_compliance + R_efficiency
 ## Architecture
 
 <div align="center">
+<img src="assets/flow.png" alt="flow" width="100%"/>
+</div>
+
+---
+
+
+<div align="center">
 <img src="assets/opsflow_architecture.png" alt="TickFlow System Architecture" width="100%"/>
 </div>
 
 *Figure 1: System Architecture — Policy-Aware Enterprise Support Orchestration Environment showing Agent Layer, Tool Registry (9 tools), State Manager, and Deterministic Grader.*
+
+---
+
+## OpenEnv Core Interface (`reset`, `step`, `state`)
+
+TickFlow follows the standard OpenEnv interaction loop:
+
+```python
+# 1) Start new episode
+observation = reset(task_id="task_easy_delivery")
+
+# 2) Agent acts until done=True
+while True:
+    action = {
+        "tool_name": "READ_TICKET",
+        "arguments": {},
+        "reasoning": "Read the ticket first"
+    }
+    observation, reward, done, info = step(action)
+    if done:
+        break
+
+# 3) Inspect full internal state (debugging/evaluation)
+current_state = state()
+```
+
+`reset()` returns the initial observation for the selected task, `step()` applies one action and returns `(observation, reward, done, info)`, and `state()` returns the complete environment state (workflow flags, violations, audit trail, and reward totals).
+
+### Endpoint Mapping
+
+| OpenEnv Method | HTTP Endpoint | Method | Purpose |
+|----------------|---------------|--------|---------|
+| `reset(task_id)` | `/reset` | POST | Start episode and return initial observation |
+| `step(action)` | `/step` | POST | Execute one action and return transition |
+| `state()` | `/state` | GET | Return current full environment state |
 
 ---
 
