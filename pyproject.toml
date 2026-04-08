@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tickflow-openenv"
+version = "1.0.0"
+description = "Policy-aware OpenEnv benchmark for enterprise customer support orchestration."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "TickFlow Team" }
+]
+dependencies = [
+  "fastapi>=0.104.0",
+  "uvicorn>=0.24.0",
+  "pydantic>=2.5.0",
+  "python-dotenv>=1.0.0",
+  "openai>=1.3.0",
+  "httpx>=0.25.0"
+]
+
+[tool.setuptools]
+py-modules = ["app", "env", "models", "rewards", "graders", "inference"]
