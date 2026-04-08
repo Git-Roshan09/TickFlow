@@ -240,27 +240,43 @@ Bypassing approval results in **score = 0.0** (compliance failure)
 
 **Step Reward Function:**
 
-```
-R_step(t) = R_tool(a_t) + R_order(a_t, s_t) + R_compliance(a_t, s_t) + R_efficiency(t)
-```
+$$
+R_t =
+\underbrace{R_{\text{tool}}(a_t)}_{\text{correct tool usage}}
+\;+\;
+\underbrace{R_{\text{order}}(a_t, s_t)}_{\text{workflow order correctness}}
+\;+\;
+\underbrace{R_{\text{comp}}(a_t, s_t)}_{\text{policy compliance}}
+\;+\;
+\underbrace{R_{\text{eff}}(t)}_{\text{efficiency term}}
+$$
 
 Where:
-- `R_tool(a_t)` = Reward for executing tool `a_t` correctly
-- `R_order(a_t, s_t)` = Penalty if action violates required ordering given state `s_t`
-- `R_compliance(a_t, s_t)` = Penalty for policy violations (e.g., bypassing approval)
-- `R_efficiency(t)` = `-0.02` if `t > optimal_steps`, else `0`
+- $R_{\text{tool}}(a_t)$ = reward for executing tool $a_t$ correctly  
+- $R_{\text{order}}(a_t, s_t)$ = penalty if action violates required ordering given state $s_t$  
+- $R_{\text{comp}}(a_t, s_t)$ = policy violation penalty (e.g., bypassing approval)  
+- $R_{\text{eff}}(t)= -0.02 \cdot \max(0, t - T^\*)$, where $T^\*$ is the optimal step count
 
 **Episode Score (Grading):**
 
-```
-S_episode = (Σ R_step(t) + 0.5) / 1.5    # Normalized to [0.0, 1.0]
-```
+$$
+S_{\text{episode}} =
+\operatorname{clip}_{[0,1]}
+\left(
+\frac{\sum_{t=1}^{T} R_t + 0.5}{1.5}
+\right)
+$$
 
 **Grader Score Function (Task-specific):**
 
-```
-G(s_final) = Σ w_i · I(condition_i met) - Σ p_j · |violations_j|
-```
+$$
+G(s_{\text{final}}) =
+\operatorname{clip}_{[0,1]}
+\left(
+\sum_i w_i \,\mathbf{1}[\text{condition}_i]
+-\sum_j p_j \, |\text{violations}_j|
+\right)
+$$
 
 Where `w_i` are component weights and `p_j` are violation penalties.
 
