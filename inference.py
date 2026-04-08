@@ -33,6 +33,7 @@ STDOUT FORMAT
 import os
 import sys
 import json
+import time
 import textwrap
 from typing import Any, Dict, List, Optional
 
@@ -58,6 +59,7 @@ MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 
 BENCHMARK = "opsflow"
 MAX_STEPS = 15
+MAX_RETRIES = 3  # Number of API retry attempts
 TEMPERATURE = 0.0  # Deterministic for reproducibility
 MAX_TOKENS = 500
 SUCCESS_SCORE_THRESHOLD = 0.5
@@ -67,32 +69,39 @@ SUCCESS_SCORE_THRESHOLD = 0.5
 # System Prompt
 # =============================================================================
 
-SYSTEM_PROMPT = """You are an AI agent operating a customer support workflow system. Your job is to resolve customer tickets by using the available tools in the correct order.
+SYSTEM_PROMPT = """You are an AI agent operating a customer support workflow system. Your job is to resolve customer tickets by using the available tools in the correct sequence.
+
+CRITICAL: You MUST follow this exact workflow sequence - do NOT skip steps!
+
+MANDATORY WORKFLOW SEQUENCE:
+1. READ_TICKET - ALWAYS start here to officially read the ticket (required even if you can see ticket content)
+2. Analyze the request type and gather necessary data:
+   - For order inquiries: GET_ORDER_DETAILS 
+   - For account issues: GET_CUSTOMER_PROFILE
+   - For refund requests: CHECK_POLICY first
+3. Take appropriate action based on findings:
+   - If refund needed: REQUEST_APPROVAL (if high value) → EXECUTE_REFUND
+   - If store credit needed: ISSUE_STORE_CREDIT  
+   - If information needed: provide details
+4. SEND_CUSTOMER_REPLY - ALWAYS communicate the outcome to customer
+5. SUBMIT_RESOLUTION - Close the ticket (FINAL step only)
 
 AVAILABLE TOOLS:
-1. READ_TICKET - Read the customer support ticket (always do this first)
-2. GET_ORDER_DETAILS - Retrieve order information from the database
-3. GET_CUSTOMER_PROFILE - Get customer profile and tier information
-4. CHECK_POLICY - Check the applicable refund/return policy
-5. REQUEST_APPROVAL - Request manager approval (required for high-value refunds)
-6. EXECUTE_REFUND - Process a refund for an order
-7. ISSUE_STORE_CREDIT - Issue store credit to customer account
-8. SEND_CUSTOMER_REPLY - Send a response message to the customer
-9. SUBMIT_RESOLUTION - Submit the final resolution and close the ticket
+- READ_TICKET: Read the customer support ticket (MANDATORY FIRST STEP)
+- GET_ORDER_DETAILS: Retrieve order information from database  
+- GET_CUSTOMER_PROFILE: Get customer profile and tier information
+- CHECK_POLICY: Check applicable refund/return policy
+- REQUEST_APPROVAL: Request manager approval (required for high-value refunds)
+- EXECUTE_REFUND: Process a refund for an order
+- ISSUE_STORE_CREDIT: Issue store credit to customer account
+- SEND_CUSTOMER_REPLY: Send response message to customer (MANDATORY before closing)
+- SUBMIT_RESOLUTION: Close the ticket (FINAL STEP ONLY)
 
-WORKFLOW RULES:
-- Always READ_TICKET first to understand the request
-- GET_ORDER_DETAILS before making any decisions about refunds
-- CHECK_POLICY before executing refunds to verify eligibility
-- REQUEST_APPROVAL is required for refunds above the policy threshold
-- Always SEND_CUSTOMER_REPLY before SUBMIT_RESOLUTION
-- End with SUBMIT_RESOLUTION to close the ticket
-
-IMPORTANT:
-- Follow the correct order of operations
-- Don't skip required steps (like policy check before refund)
-- Request approval when the refund amount exceeds the threshold
-- Always communicate the outcome to the customer
+CRITICAL RULES:
+❌ NEVER start with SUBMIT_RESOLUTION - this ends the workflow
+❌ NEVER skip READ_TICKET - always do this first
+❌ NEVER skip SEND_CUSTOMER_REPLY before closing
+✅ ALWAYS follow the sequence: READ → ANALYZE → ACT → REPLY → CLOSE
 
 Respond with a JSON object containing:
 {
@@ -170,20 +179,31 @@ class OpsFlowAgent:
         parts = [
             f"Current Status: {observation.get('current_status', 'unknown')}",
             f"Steps Remaining: {observation.get('max_steps_remaining', 0)}",
-            f"\nTicket:\n{observation.get('ticket_text', 'No ticket loaded')}",
         ]
         
+        # Only show ticket preview initially - force agent to use READ_TICKET
+        if not observation.get('workflow_history'):
+            parts.append(f"\n📋 Ticket Preview: New customer support ticket available")
+            parts.append("⚠️  Use READ_TICKET tool to view full ticket content")
+        else:
+            # Show full ticket after READ_TICKET has been used
+            parts.append(f"\n📋 Full Ticket:\n{observation.get('ticket_text', 'No ticket loaded')}")
+        
         if observation.get('last_tool_output'):
-            parts.append(f"\nLast Tool Output:\n{json.dumps(observation['last_tool_output'], indent=2)}")
+            parts.append(f"\n🔧 Last Tool Output:\n{json.dumps(observation['last_tool_output'], indent=2)}")
         
         if observation.get('workflow_history'):
             history = [f"- Step {h['step']}: {h['tool']}" for h in observation['workflow_history']]
-            parts.append(f"\nWorkflow History:\n" + "\n".join(history))
+            parts.append(f"\n📊 Workflow History:\n" + "\n".join(history))
         
         if observation.get('compliance_alerts'):
-            parts.append(f"\nCompliance Alerts: {', '.join(observation['compliance_alerts'])}")
+            parts.append(f"\n⚠️  Compliance Alerts: {', '.join(observation['compliance_alerts'])}")
         
-        parts.append("\nWhat tool should be used next? Respond with JSON only.")
+        available_tools = observation.get('available_tools', [])
+        parts.append(f"\n🛠️  Available Tools: {', '.join(available_tools)}")
+        
+        parts.append("\n❓ What tool should be used next? Remember to follow the mandatory workflow sequence!")
+        parts.append("📝 Respond with JSON only.")
         
         return "\n".join(parts)
     
