@@ -38,7 +38,7 @@ class TestDeliveryStatusGrader:
         grader = DeliveryStatusGrader()
         score = grader.grade(state)
         
-        assert 0.999 <= score < 1.0
+        assert 0.99 <= score < 1.0
     
     def test_partial_score_no_reply(self):
         """Missing customer reply should reduce score."""
@@ -116,7 +116,7 @@ class TestLowValueRefundGrader:
         grader = LowValueRefundGrader()
         score = grader.grade(state)
         
-        assert 0.999 <= score < 1.0
+        assert 0.99 <= score < 1.0
     
     def test_refund_without_policy_check(self):
         """Refund without policy check should score lower."""
@@ -187,7 +187,7 @@ class TestHighValueApprovalGrader:
         grader = HighValueApprovalGrader()
         score = grader.grade(state)
         
-        assert 0.999 <= score < 1.0
+        assert 0.99 <= score < 1.0
     
     def test_approval_bypassed(self):
         """Bypassing approval should heavily penalize score."""

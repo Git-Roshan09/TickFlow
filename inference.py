@@ -63,6 +63,12 @@ MAX_RETRIES = 3  # Number of API retry attempts
 TEMPERATURE = 0.0  # Deterministic for reproducibility
 MAX_TOKENS = 500
 SUCCESS_SCORE_THRESHOLD = 0.5
+SCORE_EPSILON = 1e-3
+
+
+def clamp_open_unit_interval(value: float) -> float:
+    """Clamp score to strict open interval (0, 1) for validator compliance."""
+    return max(SCORE_EPSILON, min(1.0 - SCORE_EPSILON, value))
 
 
 # =============================================================================
@@ -291,7 +297,7 @@ def run_task(env: OpsFlowEnv, agent: OpsFlowAgent, task_id: str) -> Dict[str, An
     
     rewards: List[float] = []
     steps_taken = 0
-    score = 0.0
+    score = SCORE_EPSILON
     success = False
     result = None
     
@@ -338,14 +344,14 @@ def run_task(env: OpsFlowEnv, agent: OpsFlowAgent, task_id: str) -> Dict[str, An
             score = result.info.get("final_score", 0.0)
         else:
             # If not done, use normalized cumulative reward
-            score = max(0.0, min(1.0, sum(rewards)))
+            score = clamp_open_unit_interval(sum(rewards))
         
-        score = max(0.0, min(1.0, score))  # clamp to [0, 1]
+        score = clamp_open_unit_interval(score)
         success = score >= SUCCESS_SCORE_THRESHOLD
         
     except Exception as e:
         print(f"[DEBUG] Task {task_id} failed with error: {e}", flush=True)
-        score = 0.0
+        score = SCORE_EPSILON
         success = False
     
     finally:

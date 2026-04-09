@@ -8,7 +8,7 @@ Returns scores between 0.0 and 1.0.
 from typing import Dict, Any, List, Optional
 from models import EnvironmentState
 
-EPSILON = 1e-6
+EPSILON = 1e-3
 
 
 def _to_open_unit_interval(score: float) -> float:
