@@ -8,6 +8,13 @@ Returns scores between 0.0 and 1.0.
 from typing import Dict, Any, List, Optional
 from models import EnvironmentState
 
+EPSILON = 1e-6
+
+
+def _to_open_unit_interval(score: float) -> float:
+    """Clamp score to strict open interval (0, 1)."""
+    return max(EPSILON, min(1.0 - EPSILON, score))
+
 
 class BaseGrader:
     """Base class for task graders."""
@@ -59,8 +66,7 @@ class DeliveryStatusGrader(BaseGrader):
         violation_penalty = len(state.compliance_violations) * 0.1
         score = max(0.0, score - violation_penalty)
         
-        # Cap at 1.0
-        return min(1.0, score)
+        return _to_open_unit_interval(score)
 
 
 class LowValueRefundGrader(BaseGrader):
@@ -108,7 +114,7 @@ class LowValueRefundGrader(BaseGrader):
         violation_penalty = len(state.compliance_violations) * 0.15
         score = max(0.0, score - violation_penalty)
         
-        return min(1.0, score)
+        return _to_open_unit_interval(score)
 
 
 class HighValueApprovalGrader(BaseGrader):
@@ -170,7 +176,7 @@ class HighValueApprovalGrader(BaseGrader):
         violation_penalty = len(state.compliance_violations) * 0.20
         score = max(0.0, score - violation_penalty)
         
-        return max(0.0, min(1.0, score))
+        return _to_open_unit_interval(score)
 
 
 # =============================================================================
@@ -198,7 +204,7 @@ def grade_task(task_id: str, state: EnvironmentState) -> float:
     if task_id not in GRADERS:
         raise ValueError(f"No grader for task: {task_id}")
     
-    return GRADERS[task_id].grade(state)
+    return _to_open_unit_interval(GRADERS[task_id].grade(state))
 
 
 def get_grader(task_id: str) -> BaseGrader:

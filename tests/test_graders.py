@@ -38,7 +38,7 @@ class TestDeliveryStatusGrader:
         grader = DeliveryStatusGrader()
         score = grader.grade(state)
         
-        assert score == 1.0
+        assert 0.999 <= score < 1.0
     
     def test_partial_score_no_reply(self):
         """Missing customer reply should reduce score."""
@@ -116,7 +116,7 @@ class TestLowValueRefundGrader:
         grader = LowValueRefundGrader()
         score = grader.grade(state)
         
-        assert score == 1.0
+        assert 0.999 <= score < 1.0
     
     def test_refund_without_policy_check(self):
         """Refund without policy check should score lower."""
@@ -187,7 +187,7 @@ class TestHighValueApprovalGrader:
         grader = HighValueApprovalGrader()
         score = grader.grade(state)
         
-        assert score == 1.0
+        assert 0.999 <= score < 1.0
     
     def test_approval_bypassed(self):
         """Bypassing approval should heavily penalize score."""
@@ -244,7 +244,7 @@ class TestGradeTaskFunction:
         )
         
         score = grade_task("task_easy_delivery", state)
-        assert 0.0 <= score <= 1.0
+        assert 0.0 < score < 1.0
     
     def test_grade_task_unknown_raises(self):
         """grade_task with unknown task should raise ValueError."""
@@ -280,7 +280,7 @@ class TestScoreRange:
         
         for state in states:
             score = grader.grade(state)
-            assert 0.0 <= score <= 1.0, f"Score {score} out of range"
+            assert 0.0 < score < 1.0, f"Score {score} out of range"
     
     def test_refund_score_range(self):
         """Refund grader should always return 0.0-1.0."""
@@ -296,7 +296,7 @@ class TestScoreRange:
         
         for state in states:
             score = grader.grade(state)
-            assert 0.0 <= score <= 1.0, f"Score {score} out of range"
+            assert 0.0 < score < 1.0, f"Score {score} out of range"
     
     def test_approval_score_range(self):
         """Approval grader should always return 0.0-1.0."""
@@ -315,4 +315,4 @@ class TestScoreRange:
         
         for state in states:
             score = grader.grade(state)
-            assert 0.0 <= score <= 1.0, f"Score {score} out of range"
+            assert 0.0 < score < 1.0, f"Score {score} out of range"
